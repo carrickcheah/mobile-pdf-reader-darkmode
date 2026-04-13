@@ -1,4 +1,4 @@
-name: Deploy PDF Dark
+name: Deploy to Azure VM
 
 on:
   workflow_dispatch:
@@ -7,53 +7,52 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - name: Deploy
-        run: |
-          set -e
-          echo "=== Deploying PDF Dark ==="
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_SSH_KEY }}
+          script: |
+            set -e
+            APP_DIR="/app/pdf_dark"
 
-          cd /app/pdf_dark
+            # First-time setup: clone if not exists
+            if [ ! -d "$APP_DIR" ]; then
+              echo "=== First deploy — cloning repo ==="
+              sudo mkdir -p /app
+              sudo chown $(whoami):$(whoami) /app
+              git clone https://github.com/carrickcheah/mobile-pdf-reader-darkmode.git "$APP_DIR"
+            fi
 
-          # Pull latest code
-          echo "Pulling latest changes..."
-          git pull origin main
+            cd "$APP_DIR"
 
-          # Rebuild and restart container
-          echo "Building and starting container..."
-          docker compose down --remove-orphans || true
-          docker compose build
-          docker compose up -d
+            # Pull latest
+            echo "=== Pulling latest code ==="
+            git pull origin main
 
-          # Wait for container to start
-          echo "Waiting for container to start..."
-          sleep 5
+            # Build and deploy
+            echo "=== Building container ==="
+            docker compose build
 
-          # Health check on port 3099
-          echo "Running health check..."
-          if curl -sf http://127.0.0.1:3099/ > /dev/null; then
-            echo "Health check passed — site is up on port 3099"
-          else
-            echo "Health check failed"
-            docker compose logs --tail=30
-            exit 1
-          fi
+            echo "=== Starting container ==="
+            docker compose up -d
 
-          # Cleanup old images
-          docker image prune -f --filter "until=24h" || true
+            # Health check
+            echo "=== Health check ==="
+            sleep 5
+            if curl -sf http://127.0.0.1:3099/ > /dev/null; then
+              echo "DEPLOYED — app is live on port 3099"
+            else
+              echo "HEALTH CHECK FAILED"
+              docker compose logs --tail=30
+              exit 1
+            fi
 
-          echo "=== Deployment complete ==="
-
-      - name: Verify deployment
-        run: |
-          echo "=== Container Status ==="
-          docker compose -f /app/pdf_dark/docker-compose.yml ps
-
-      - name: Collect logs on failure
-        if: failure()
-        run: |
-          echo "=== Deployment Failed - Collecting Logs ==="
-          docker compose -f /app/pdf_dark/docker-compose.yml logs --tail=50
+            # Cleanup
+            docker image prune -f --filter "until=24h" || true
+            echo "=== Done ==="
