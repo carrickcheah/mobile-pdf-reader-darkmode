@@ -2,14 +2,16 @@ interface Props {
   currentPage: number;
   totalPages: number;
   progress: number;
+  onBack: () => void;
 }
 
-export default function ProgressBar({ currentPage, totalPages, progress }: Props) {
+export default function ProgressBar({ currentPage, totalPages, progress, onBack }: Props) {
   const percent = Math.min(100, Math.max(0, Math.round(progress * 100)));
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} onClick={(e) => e.stopPropagation()}>
       <div style={styles.info}>
+        <button onClick={onBack} style={styles.backBtn}>&larr; Library</button>
         <span>
           Page {currentPage} of {totalPages}
         </span>
@@ -40,9 +42,18 @@ const styles: Record<string, React.CSSProperties> = {
   info: {
     display: "flex",
     justifyContent: "space-between",
+    alignItems: "center",
     fontSize: 11,
     color: "#555",
     marginBottom: 6,
+  },
+  backBtn: {
+    fontSize: 11,
+    color: "#4A9EFF",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: 0,
   },
   track: {
     height: 3,

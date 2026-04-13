@@ -18,6 +18,7 @@ export default function Reader({ bookId, onBack }: Props) {
   const { settings, update } = useReaderSettings();
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const wheelCooldown = useRef(false);
 
   const allParagraphs = parsed?.pages.flatMap((p) => p.paragraphs) ?? [];
 
@@ -91,6 +92,9 @@ export default function Reader({ bookId, onBack }: Props) {
     };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (wheelCooldown.current) return;
+      wheelCooldown.current = true;
+      setTimeout(() => { wheelCooldown.current = false; }, 300);
       if (e.deltaY > 0) goNext();
       else if (e.deltaY < 0) goPrev();
     };
@@ -118,10 +122,6 @@ export default function Reader({ bookId, onBack }: Props) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <button onClick={(e) => { e.stopPropagation(); onBack(); }} style={styles.backBtn}>
-        &larr;
-      </button>
-
       <div
         style={{
           ...styles.content,
@@ -142,6 +142,7 @@ export default function Reader({ bookId, onBack }: Props) {
         currentPage={currentPage}
         totalPages={totalPages}
         progress={progress}
+        onBack={onBack}
       />
 
       {showControls && (
@@ -164,22 +165,6 @@ const styles: Record<string, React.CSSProperties> = {
     userSelect: "text",
     background: "#121212",
   },
-  backBtn: {
-    position: "fixed",
-    top: 12,
-    left: 12,
-    zIndex: 50,
-    width: 36,
-    height: 36,
-    borderRadius: "50%",
-    background: "rgba(30,30,30,0.8)",
-    color: "#888",
-    fontSize: 18,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    opacity: 0.5,
-  },
   content: {
     height: "100%",
     overflow: "hidden",
@@ -188,6 +173,7 @@ const styles: Record<string, React.CSSProperties> = {
   paragraph: {
     marginBottom: "0.7em",
     color: "#e0e0e0",
+    fontWeight: 600,
   },
   loading: {
     height: "100%",
