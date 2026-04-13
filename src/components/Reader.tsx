@@ -18,7 +18,7 @@ export default function Reader({ bookId, onBack }: Props) {
   const { settings, update } = useReaderSettings();
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const wheelCooldown = useRef(false);
+  const touchUsedRef = useRef(false);
 
   const allParagraphs = parsed?.pages.flatMap((p) => p.paragraphs) ?? [];
 
@@ -56,6 +56,7 @@ export default function Reader({ bookId, onBack }: Props) {
   );
 
   const handleClick = (e: React.MouseEvent) => {
+    if (touchUsedRef.current) { touchUsedRef.current = false; return; }
     handleTap(e.clientX, window.innerWidth);
   };
 
@@ -72,6 +73,7 @@ export default function Reader({ bookId, onBack }: Props) {
     const dx = touch.clientX - start.x;
     const dy = touch.clientY - start.y;
 
+    touchUsedRef.current = true;
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
       if (dx < 0) goNext();
       else goPrev();
@@ -92,9 +94,6 @@ export default function Reader({ bookId, onBack }: Props) {
     };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (wheelCooldown.current) return;
-      wheelCooldown.current = true;
-      setTimeout(() => { wheelCooldown.current = false; }, 300);
       if (e.deltaY > 0) goNext();
       else if (e.deltaY < 0) goPrev();
     };

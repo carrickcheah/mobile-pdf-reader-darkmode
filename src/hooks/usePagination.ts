@@ -75,11 +75,19 @@ export function usePagination(
     }
   }, [paragraphs, settings, containerRef]);
 
+  const navCooldown = useRef(false);
+
   const goNext = useCallback(() => {
+    if (navCooldown.current) return;
+    navCooldown.current = true;
+    setTimeout(() => { navCooldown.current = false; }, 400);
     setCurrentPage((p) => Math.min(p + 1, pages.length - 1));
   }, [pages.length]);
 
   const goPrev = useCallback(() => {
+    if (navCooldown.current) return;
+    navCooldown.current = true;
+    setTimeout(() => { navCooldown.current = false; }, 400);
     setCurrentPage((p) => Math.max(p - 1, 0));
   }, []);
 
