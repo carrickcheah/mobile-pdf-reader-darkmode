@@ -33,7 +33,7 @@ export default function Library({ onOpen, onLogout }: Props) {
         const dataCopy = data.slice(0);
         const parsed = await parsePdf(data);
         const record: PdfRecord = {
-          id: crypto.randomUUID(),
+          id: self.crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           name: file.name.replace(/\.pdf$/i, ""),
           data: dataCopy,
           addedAt: Date.now(),
