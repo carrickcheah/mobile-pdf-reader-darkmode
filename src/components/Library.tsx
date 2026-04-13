@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { getAllPdfs, savePdf, deletePdf, type PdfRecord } from "../lib/storage";
-import { parsePdf } from "../lib/pdf-parser";
+import { listPdfs, uploadPdf, deletePdfApi, type PdfMeta } from "../lib/api";
 
 interface Props {
   onOpen: (id: string) => void;
@@ -8,17 +7,15 @@ interface Props {
 }
 
 export default function Library({ onOpen, onLogout }: Props) {
-  const [books, setBooks] = useState<PdfRecord[]>([]);
+  const [books, setBooks] = useState<PdfMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getAllPdfs()
-      .then((pdfs) => {
-        setBooks(pdfs.sort((a, b) => b.addedAt - a.addedAt));
-      })
+    listPdfs()
+      .then(setBooks)
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -29,20 +26,9 @@ export default function Library({ onOpen, onLogout }: Props) {
     try {
       for (const file of Array.from(files)) {
         if (file.type !== "application/pdf") continue;
-        const data = await file.arrayBuffer();
-        const dataCopy = data.slice(0);
-        const parsed = await parsePdf(data);
-        const record: PdfRecord = {
-          id: self.crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          name: file.name.replace(/\.pdf$/i, ""),
-          data: dataCopy,
-          addedAt: Date.now(),
-          pageCount: parsed.pageCount,
-        };
-        await savePdf(record);
+        await uploadPdf(file);
       }
-      const pdfs = await getAllPdfs();
-      setBooks(pdfs.sort((a, b) => b.addedAt - a.addedAt));
+      setBooks(await listPdfs());
     } catch (err) {
       console.error("Upload failed:", err);
     } finally {
@@ -52,7 +38,7 @@ export default function Library({ onOpen, onLogout }: Props) {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await deletePdf(id);
+    await deletePdfApi(id);
     setBooks((prev) => prev.filter((b) => b.id !== id));
   };
 
@@ -84,7 +70,7 @@ export default function Library({ onOpen, onLogout }: Props) {
         }}
         disabled={uploading}
       >
-        {uploading ? "Processing..." : dragOver ? "Drop PDF here" : "+ Upload PDF"}
+        {uploading ? "Uploading..." : dragOver ? "Drop PDF here" : "+ Upload PDF"}
       </button>
       <input
         ref={fileRef}
@@ -112,7 +98,7 @@ export default function Library({ onOpen, onLogout }: Props) {
               </div>
               <div style={styles.cardInfo}>
                 <p style={styles.cardTitle}>{book.name}</p>
-                <p style={styles.cardMeta}>{book.pageCount} pages</p>
+                <p style={styles.cardMeta}>{formatSize(book.size)}</p>
               </div>
               <button
                 onClick={(e) => handleDelete(e, book.id)}
@@ -127,6 +113,12 @@ export default function Library({ onOpen, onLogout }: Props) {
       )}
     </div>
   );
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const styles: Record<string, React.CSSProperties> = {

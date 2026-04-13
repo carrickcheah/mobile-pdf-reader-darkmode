@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getPdf } from "../lib/storage";
+import { downloadPdf } from "../lib/api";
 import { parsePdf, type ParsedPdf } from "../lib/pdf-parser";
 import { useReaderSettings } from "../hooks/useReaderSettings";
 import { usePagination } from "../hooks/usePagination";
@@ -28,9 +28,9 @@ export default function Reader({ bookId, onBack }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const record = await getPdf(bookId);
-        if (!record || cancelled) return;
-        const result = await parsePdf(record.data, (page, total) => {
+        const data = await downloadPdf(bookId);
+        if (cancelled) return;
+        const result = await parsePdf(data, (page, total) => {
           if (!cancelled) setParseProgress(`Parsing page ${page} of ${total}...`);
         });
         if (!cancelled) {

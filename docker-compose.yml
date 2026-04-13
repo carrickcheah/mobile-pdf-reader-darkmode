@@ -4,14 +4,18 @@ services:
     container_name: pdf-dark
     restart: unless-stopped
     ports:
-      - "3099:80"
+      - "3099:3099"
+    environment:
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
+      - AZURE_STORAGE_PDF_CONTAINER=${AZURE_STORAGE_PDF_CONTAINER:-pdfs}
+      - PORT=3099
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3099/health"]
       interval: 30s
       timeout: 5s
       retries: 3
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: "0.1"
+          memory: 256M
+          cpus: "0.2"
