@@ -1,0 +1,59 @@
+name: Deploy PDF Dark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 10
+
+    steps:
+      - name: Deploy
+        run: |
+          set -e
+          echo "=== Deploying PDF Dark ==="
+
+          cd /app/pdf_dark
+
+          # Pull latest code
+          echo "Pulling latest changes..."
+          git pull origin main
+
+          # Rebuild and restart container
+          echo "Building and starting container..."
+          docker compose down --remove-orphans || true
+          docker compose build
+          docker compose up -d
+
+          # Wait for container to start
+          echo "Waiting for container to start..."
+          sleep 5
+
+          # Health check on port 3099
+          echo "Running health check..."
+          if curl -sf http://127.0.0.1:3099/ > /dev/null; then
+            echo "Health check passed — site is up on port 3099"
+          else
+            echo "Health check failed"
+            docker compose logs --tail=30
+            exit 1
+          fi
+
+          # Cleanup old images
+          docker image prune -f --filter "until=24h" || true
+
+          echo "=== Deployment complete ==="
+
+      - name: Verify deployment
+        run: |
+          echo "=== Container Status ==="
+          docker compose -f /app/pdf_dark/docker-compose.yml ps
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          echo "=== Deployment Failed - Collecting Logs ==="
+          docker compose -f /app/pdf_dark/docker-compose.yml logs --tail=50
