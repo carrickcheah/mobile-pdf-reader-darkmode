@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { compress } from "hono/compress";
 import { serveStatic } from "hono/bun";
 import {
   BlobServiceClient,
@@ -7,6 +8,8 @@ import {
 } from "@azure/storage-blob";
 
 const app = new Hono();
+
+app.use("*", compress());
 
 // Azure Blob setup
 const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING!;
@@ -95,7 +98,15 @@ app.delete("/api/pdfs/:id", async (c) => {
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// Serve static frontend
+// Serve static assets with 1-year cache
+app.use("/assets/*", serveStatic({ root: "./dist" }));
+app.use("/assets/*", async (c, next) => {
+  await next();
+  c.header("Cache-Control", "public, max-age=31536000, immutable");
+});
+app.use("/pdf.worker.min.mjs", serveStatic({ root: "./dist" }));
+
+// Serve frontend (no cache for HTML)
 app.use("/*", serveStatic({ root: "./dist" }));
 app.get("*", serveStatic({ root: "./dist", path: "/index.html" }));
 
